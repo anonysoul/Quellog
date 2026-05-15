@@ -1,11 +1,11 @@
-menu "Quellog Firmware"
+menu "Quellog E-Ink Firmware"
 
 config QUELLOG_BOARD_TYPE_ZECTRIX_S3_EPAPER_4_2
     bool "zectrix-s3-epaper-4.2"
     default y
     depends on IDF_TARGET_ESP32S3
     help
-        Default Quellog development board.
+        Default Quellog E-Ink development board.
 
 config QUELLOG_BUTTON_UP_GPIO
     int "UP button GPIO"

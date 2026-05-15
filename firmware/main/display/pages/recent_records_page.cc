@@ -17,7 +17,7 @@ std::string FormatRecordLine(const RecordSummary& record) {
 
 PageModel RecentRecordsPage::BuildModel(const AppContext& context) const {
     PageModel model;
-    model.title = "Quellog / Recent";
+    model.title = "Quellog E-Ink / Recent";
     if (context.dashboard.recent_records.empty()) {
         model.text_blocks.push_back({"No local records yet."});
     } else {

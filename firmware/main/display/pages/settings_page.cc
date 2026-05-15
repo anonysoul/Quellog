@@ -2,7 +2,7 @@
 
 PageModel SettingsPage::BuildModel(const AppContext& context) const {
     PageModel model;
-    model.title = "Quellog / Settings";
+    model.title = "Quellog E-Ink / Settings";
     model.text_blocks.push_back({"Alias  " + context.device_alias});
     model.text_blocks.push_back({"Board  " + context.board_type});
     model.text_blocks.push_back({"UUID   " + context.device_uuid});

@@ -47,7 +47,7 @@ int64_t GetMaxAmountCents(const std::vector<BarChartItem>& items) {
 
 PageModel StatsPage::BuildModel(const AppContext& context) const {
     PageModel model;
-    model.title = "Quellog / Stats";
+    model.title = "Quellog E-Ink / Stats";
     if (context.dashboard.categories.empty()) {
         model.text_blocks.push_back({"No category summary yet."});
     } else {

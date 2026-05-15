@@ -122,7 +122,7 @@ void Application::LoadSettings() {
     Settings settings("app", true);
     current_page_index_ = settings.GetInt("page_index", 0);
     refresh_policy_ = settings.GetInt("refresh_policy", 0) == 1 ? RefreshPolicy::Timed : RefreshPolicy::Manual;
-    device_alias_ = settings.GetString("device_alias", "Quellog Terminal");
+    device_alias_ = settings.GetString("device_alias", "Quellog E-Ink");
 }
 
 void Application::SaveSettings() {

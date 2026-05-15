@@ -13,7 +13,7 @@ std::string FormatAmount(int64_t cents) {
 
 PageModel OverviewPage::BuildModel(const AppContext& context) const {
     PageModel model;
-    model.title = "Quellog / Overview";
+    model.title = "Quellog E-Ink / Overview";
     model.text_blocks.push_back({"Today  " + FormatAmount(context.dashboard.today_expense_cents)});
     model.text_blocks.push_back({"Month  " + FormatAmount(context.dashboard.month_expense_cents)});
     model.text_blocks.push_back({"Budget " + std::to_string(context.dashboard.budget_used_percent) + "% used"});

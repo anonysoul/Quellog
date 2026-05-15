@@ -44,7 +44,7 @@ private:
     std::atomic<DeviceState> state_{kDeviceStateUnknown};
     int current_page_index_ = 0;
     RefreshPolicy refresh_policy_ = RefreshPolicy::Manual;
-    std::string device_alias_ = "Quellog Terminal";
+    std::string device_alias_ = "Quellog E-Ink";
     DashboardData dashboard_;
     int64_t last_refresh_us_ = 0;
     int refresh_count_ = 0;
