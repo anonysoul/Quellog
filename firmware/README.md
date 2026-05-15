@@ -25,3 +25,19 @@ cd firmware
 ```
 
 如果未加载 ESP-IDF 环境，请先执行对应版本的 `export.sh`。
+
+## Docker 构建
+
+如果本机未安装或未加载 ESP-IDF 环境，也可以直接使用官方 Docker 镜像构建。
+
+在仓库根目录执行：
+
+```bash
+docker run --rm \
+  -v "$(pwd)/firmware:/project" \
+  -w /project \
+  espressif/idf:release-v5.2 \
+  bash -lc 'idf.py set-target esp32s3 && idf.py build'
+```
+
+构建产物默认输出到 `firmware/build/` 目录。

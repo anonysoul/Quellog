@@ -1,15 +1,16 @@
 #include "recent_records_page.h"
 
-#include <cstdio>
-
 namespace {
 
+std::string FormatAmount(int64_t cents) {
+    const long long whole = static_cast<long long>(cents / 100);
+    const long long fraction = static_cast<long long>(cents % 100);
+    const long long abs_fraction = fraction < 0 ? -fraction : fraction;
+    return "CNY " + std::to_string(whole) + "." + (abs_fraction < 10 ? "0" : "") + std::to_string(abs_fraction);
+}
+
 std::string FormatRecordLine(const RecordSummary& record) {
-    char amount[24];
-    snprintf(amount, sizeof(amount), "CNY %lld.%02lld",
-             static_cast<long long>(record.amount_cents / 100),
-             static_cast<long long>(record.amount_cents % 100));
-    return record.title + " | " + record.category + " | " + amount;
+    return record.title + " | " + record.category + " | " + FormatAmount(record.amount_cents);
 }
 
 }  // namespace
@@ -18,10 +19,10 @@ PageModel RecentRecordsPage::BuildModel(const AppContext& context) const {
     PageModel model;
     model.title = "Quellog / Recent";
     if (context.dashboard.recent_records.empty()) {
-        model.lines.push_back("No local records yet.");
+        model.text_blocks.push_back({"No local records yet."});
     } else {
         for (const RecordSummary& record : context.dashboard.recent_records) {
-            model.lines.push_back(FormatRecordLine(record));
+            model.text_blocks.push_back({FormatRecordLine(record)});
         }
     }
     model.footer = "UP/DN page";

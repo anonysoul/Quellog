@@ -21,9 +21,29 @@ public:
         height_ = QUELLOG_DISPLAY_HEIGHT;
     }
 
-    void RenderPage(const PageModel& model) override {
-        ESP_LOGI(kTag, "[EPD %dx%d] %s", width_, height_, model.title.c_str());
-        Display::RenderPage(model);
+    void BeginPage() override {
+        ESP_LOGI(kTag, "[EPD %dx%d] begin page", width_, height_);
+    }
+
+    void EndPage() override {
+        ESP_LOGI(kTag, "[EPD] end page");
+    }
+
+    void DrawText(const Rect& rect, const char* text, TextAlign align) override {
+        ESP_LOGI(kTag, "[EPD] text [%d,%d,%d,%d] align=%d %s",
+                 rect.x, rect.y, rect.w, rect.h, static_cast<int>(align), text);
+    }
+
+    void DrawLine(int x1, int y1, int x2, int y2) override {
+        ESP_LOGI(kTag, "[EPD] line (%d,%d)-(%d,%d)", x1, y1, x2, y2);
+    }
+
+    void DrawRect(const Rect& rect) override {
+        ESP_LOGI(kTag, "[EPD] rect [%d,%d,%d,%d]", rect.x, rect.y, rect.w, rect.h);
+    }
+
+    void FillRect(const Rect& rect) override {
+        ESP_LOGI(kTag, "[EPD] fill [%d,%d,%d,%d]", rect.x, rect.y, rect.w, rect.h);
     }
 };
 

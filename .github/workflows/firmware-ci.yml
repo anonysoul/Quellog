@@ -19,21 +19,26 @@ jobs:
   firmware-build:
     name: Build firmware (esp32s3)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Validate build script syntax
-        run: bash -n firmware/build.sh
+        run: bash -n build.sh
+
+      - name: Install ESP-IDF
+        uses: espressif/install-esp-idf-action@v1
+        with:
+          version: v5.3.2
 
       - name: Build ESP-IDF project
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.3
-          target: esp32s3
-          path: firmware
-          command: idf.py reconfigure build
+        run: |
+          idf.py set-target esp32s3
+          idf.py build
 
       - name: Upload firmware build artifacts
         if: success()

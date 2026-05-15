@@ -1,12 +1,45 @@
 #ifndef QUELLOG_DISPLAY_H_
 #define QUELLOG_DISPLAY_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
+struct Rect {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+};
+
+enum class TextAlign {
+    Left = 0,
+    Center,
+    Right
+};
+
+struct TextBlockModel {
+    std::string text;
+    TextAlign align = TextAlign::Left;
+};
+
+struct BarChartItem {
+    std::string label;
+    int64_t amount_cents = 0;
+    bool is_others = false;
+};
+
+struct BarChartModel {
+    std::string title;
+    std::vector<BarChartItem> items;
+    int64_t max_amount_cents = 0;
+    bool show_amount_labels = true;
+};
+
 struct PageModel {
     std::string title;
-    std::vector<std::string> lines;
+    std::vector<TextBlockModel> text_blocks;
+    std::vector<BarChartModel> bar_charts;
     std::string footer;
 };
 
@@ -21,10 +54,19 @@ public:
     virtual void RequestFullRefresh();
     virtual void RequestPartialRefresh();
 
+    virtual void BeginPage();
+    virtual void EndPage();
+    virtual void DrawText(const Rect& rect, const char* text, TextAlign align = TextAlign::Left);
+    virtual void DrawLine(int x1, int y1, int x2, int y2);
+    virtual void DrawRect(const Rect& rect);
+    virtual void FillRect(const Rect& rect);
+
     int width() const { return width_; }
     int height() const { return height_; }
 
 protected:
+    void RenderBarChart(const BarChartModel& model, const Rect& rect);
+
     int width_ = 0;
     int height_ = 0;
 };
