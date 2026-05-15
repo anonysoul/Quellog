@@ -1,0 +1,51 @@
+#ifndef QUELLOG_APP_CONTEXT_H_
+#define QUELLOG_APP_CONTEXT_H_
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "device_state.h"
+
+enum class RefreshPolicy {
+    Manual = 0,
+    Timed = 1
+};
+
+struct RecordSummary {
+    std::string title;
+    std::string category;
+    int64_t amount_cents = 0;
+};
+
+struct CategorySummary {
+    std::string category;
+    int percent = 0;
+    int64_t amount_cents = 0;
+};
+
+struct DashboardData {
+    int64_t today_expense_cents = 0;
+    int64_t month_expense_cents = 0;
+    int budget_used_percent = 0;
+    std::string sync_status;
+    std::vector<RecordSummary> recent_records;
+    std::vector<CategorySummary> categories;
+};
+
+struct AppContext {
+    DeviceState device_state = kDeviceStateUnknown;
+    int page_index = 0;
+    int page_count = 0;
+    bool battery_known = false;
+    int battery_level = 0;
+    RefreshPolicy refresh_policy = RefreshPolicy::Manual;
+    std::string page_title;
+    std::string device_alias;
+    std::string board_type;
+    std::string device_uuid;
+    std::string last_refresh_label;
+    DashboardData dashboard;
+};
+
+#endif  // QUELLOG_APP_CONTEXT_H_

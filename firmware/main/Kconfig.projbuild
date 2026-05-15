@@ -1,0 +1,38 @@
+menu "Quellog Firmware"
+
+config QUELLOG_BOARD_TYPE_ZECTRIX_S3_EPAPER_4_2
+    bool "zectrix-s3-epaper-4.2"
+    default y
+    depends on IDF_TARGET_ESP32S3
+    help
+        Default Quellog development board.
+
+config QUELLOG_BUTTON_UP_GPIO
+    int "UP button GPIO"
+    default 39
+    range -1 48
+    depends on QUELLOG_BOARD_TYPE_ZECTRIX_S3_EPAPER_4_2
+
+config QUELLOG_BUTTON_DOWN_GPIO
+    int "DOWN button GPIO"
+    default 18
+    range -1 48
+    depends on QUELLOG_BOARD_TYPE_ZECTRIX_S3_EPAPER_4_2
+
+config QUELLOG_BUTTON_CONFIRM_GPIO
+    int "CONFIRM button GPIO"
+    default 0
+    range -1 48
+    depends on QUELLOG_BOARD_TYPE_ZECTRIX_S3_EPAPER_4_2
+
+config QUELLOG_INPUT_DEBOUNCE_MS
+    int "Button debounce in milliseconds"
+    default 180
+    range 50 1000
+
+config QUELLOG_AUTO_REFRESH_SECONDS
+    int "Timed refresh interval in seconds"
+    default 30
+    range 5 3600
+
+endmenu
