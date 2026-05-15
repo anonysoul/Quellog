@@ -29,7 +29,7 @@ std::vector<BarChartItem> BuildTopSpendingChartItems(const std::vector<CategoryS
     }
 
     if (others_amount > 0) {
-        items.push_back({"Others", others_amount, true});
+        items.push_back({"其他", others_amount, true});
     }
 
     return items;
@@ -47,22 +47,22 @@ int64_t GetMaxAmountCents(const std::vector<BarChartItem>& items) {
 
 PageModel StatsPage::BuildModel(const AppContext& context) const {
     PageModel model;
-    model.title = "Quellog E-Ink / Stats";
+    model.title = "泉流迹 / 统计";
     if (context.dashboard.categories.empty()) {
-        model.text_blocks.push_back({"No category summary yet."});
+        model.text_blocks.push_back({"暂无分类统计。"});
     } else {
         const std::vector<BarChartItem> items = BuildTopSpendingChartItems(context.dashboard.categories);
         model.bar_charts.push_back({
-            "Spending by category",
+            "按分类支出",
             items,
             GetMaxAmountCents(items),
             true,
         });
-        model.text_blocks.push_back({"Top categories by amount. Others are merged."});
+        model.text_blocks.push_back({"以下为分类汇总，超出前五项并入“其他”。"});
         for (const CategorySummary& category : context.dashboard.categories) {
             model.text_blocks.push_back({category.category + "  " + FormatAmount(category.amount_cents)});
         }
     }
-    model.footer = "UP/DN page";
+    model.footer = "上下翻页";
     return model;
 }

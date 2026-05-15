@@ -4,7 +4,9 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 
+#include <algorithm>
 #include <array>
+#include <vector>
 
 #include "board.h"
 #include "config.h"
@@ -19,32 +21,35 @@ public:
     PlaceholderEpaperDisplay() {
         width_ = QUELLOG_DISPLAY_WIDTH;
         height_ = QUELLOG_DISPLAY_HEIGHT;
+        framebuffer_.assign(static_cast<size_t>(width_ * height_), 0);
     }
 
     void BeginPage() override {
         ESP_LOGI(kTag, "[EPD %dx%d] begin page", width_, height_);
+        Clear(true);
     }
 
     void EndPage() override {
-        ESP_LOGI(kTag, "[EPD] end page");
+        size_t black_pixels = 0;
+        for (uint8_t pixel : framebuffer_) {
+            black_pixels += pixel == 0 ? 1U : 0U;
+        }
+        ESP_LOGI(kTag, "[EPD] end page, black_pixels=%lu", static_cast<unsigned long>(black_pixels));
     }
 
-    void DrawText(const Rect& rect, const char* text, TextAlign align) override {
-        ESP_LOGI(kTag, "[EPD] text [%d,%d,%d,%d] align=%d %s",
-                 rect.x, rect.y, rect.w, rect.h, static_cast<int>(align), text);
+    void Clear(bool white = true) override {
+        std::fill(framebuffer_.begin(), framebuffer_.end(), white ? 1U : 0U);
     }
 
-    void DrawLine(int x1, int y1, int x2, int y2) override {
-        ESP_LOGI(kTag, "[EPD] line (%d,%d)-(%d,%d)", x1, y1, x2, y2);
+    void SetPixel(int x, int y, bool black) override {
+        if (x < 0 || y < 0 || x >= width_ || y >= height_) {
+            return;
+        }
+        framebuffer_[static_cast<size_t>(y * width_ + x)] = black ? 0U : 1U;
     }
 
-    void DrawRect(const Rect& rect) override {
-        ESP_LOGI(kTag, "[EPD] rect [%d,%d,%d,%d]", rect.x, rect.y, rect.w, rect.h);
-    }
-
-    void FillRect(const Rect& rect) override {
-        ESP_LOGI(kTag, "[EPD] fill [%d,%d,%d,%d]", rect.x, rect.y, rect.w, rect.h);
-    }
+private:
+    std::vector<uint8_t> framebuffer_;
 };
 
 struct ButtonState {

@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "bitmap_font.h"
+
 struct Rect {
     int x = 0;
     int y = 0;
@@ -60,11 +62,15 @@ public:
     virtual void DrawLine(int x1, int y1, int x2, int y2);
     virtual void DrawRect(const Rect& rect);
     virtual void FillRect(const Rect& rect);
+    virtual void Clear(bool white = true);
+    virtual void SetPixel(int x, int y, bool black);
 
     int width() const { return width_; }
     int height() const { return height_; }
 
 protected:
+    int MeasureTextWidth(const char* text) const;
+    std::string FitText(const std::string& text, int max_width, const char* ellipsis = "...") const;
     void RenderBarChart(const BarChartModel& model, const Rect& rect);
 
     int width_ = 0;

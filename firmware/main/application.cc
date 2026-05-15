@@ -67,8 +67,8 @@ void Application::HandleInput(const InputEvent& event) {
                                       : RefreshPolicy::Manual;
                 SaveSettings();
                 display_->ShowNotification(refresh_policy_ == RefreshPolicy::Timed
-                                               ? "Refresh policy: timed"
-                                               : "Refresh policy: manual");
+                                               ? "已切换为定时刷新"
+                                               : "已切换为手动刷新");
                 RenderCurrentPage(true);
             } else {
                 TriggerRefresh();
@@ -111,7 +111,7 @@ void Application::PreviousPage() {
 void Application::TriggerRefresh() {
     state_.store(kDeviceStateRefreshing, std::memory_order_release);
     ++refresh_count_;
-    dashboard_.sync_status = "local snapshot #" + std::to_string(refresh_count_);
+    dashboard_.sync_status = "本地快照 #" + std::to_string(refresh_count_);
     last_refresh_us_ = esp_timer_get_time();
     RenderCurrentPage(true);
     state_.store(current_page_index_ == pages_.Count() - 1 ? kDeviceStateSettings : kDeviceStateIdle,
@@ -122,7 +122,7 @@ void Application::LoadSettings() {
     Settings settings("app", true);
     current_page_index_ = settings.GetInt("page_index", 0);
     refresh_policy_ = settings.GetInt("refresh_policy", 0) == 1 ? RefreshPolicy::Timed : RefreshPolicy::Manual;
-    device_alias_ = settings.GetString("device_alias", "Quellog E-Ink");
+    device_alias_ = settings.GetString("device_alias", "泉流迹墨水屏");
 }
 
 void Application::SaveSettings() {
@@ -136,17 +136,17 @@ void Application::SeedMockData() {
     dashboard_.today_expense_cents = 4680;
     dashboard_.month_expense_cents = 125430;
     dashboard_.budget_used_percent = 63;
-    dashboard_.sync_status = "local placeholder";
+    dashboard_.sync_status = "本地占位数据";
     dashboard_.recent_records = {
-        {"Lunch", "Food", 3200},
-        {"Metro Top-up", "Transport", 2000},
-        {"Coffee Beans", "Groceries", 6480},
+        {"工作日午餐", "餐饮", 3200},
+        {"地铁充值", "交通", 2000},
+        {"咖啡豆补货", "日用", 6480},
     };
     dashboard_.categories = {
-        {"Food", 34, 42500},
-        {"Groceries", 27, 33800},
-        {"Transport", 12, 15400},
-        {"Home", 11, 13900},
+        {"餐饮", 34, 42500},
+        {"日用", 27, 33800},
+        {"交通", 12, 15400},
+        {"居家", 11, 13900},
     };
 }
 
@@ -173,7 +173,7 @@ AppContext Application::BuildContext() const {
 
 std::string Application::BuildRefreshLabel() const {
     const int64_t age_sec = (esp_timer_get_time() - last_refresh_us_) / 1000000LL;
-    return std::to_string(age_sec) + "s ago";
+    return std::to_string(age_sec) + " 秒前";
 }
 
 bool Application::ShouldAutoRefresh(int64_t now_us) const {

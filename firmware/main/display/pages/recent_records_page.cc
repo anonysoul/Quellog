@@ -17,14 +17,14 @@ std::string FormatRecordLine(const RecordSummary& record) {
 
 PageModel RecentRecordsPage::BuildModel(const AppContext& context) const {
     PageModel model;
-    model.title = "Quellog E-Ink / Recent";
+    model.title = "泉流迹 / 最近记录";
     if (context.dashboard.recent_records.empty()) {
-        model.text_blocks.push_back({"No local records yet."});
+        model.text_blocks.push_back({"暂无本地记录。"});
     } else {
         for (const RecordSummary& record : context.dashboard.recent_records) {
             model.text_blocks.push_back({FormatRecordLine(record)});
         }
     }
-    model.footer = "UP/DN page";
+    model.footer = "上下翻页";
     return model;
 }

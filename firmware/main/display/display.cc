@@ -3,6 +3,8 @@
 #include <esp_log.h>
 
 #include <algorithm>
+#include <cstdlib>
+
 namespace {
 
 constexpr char kTag[] = "Display";
@@ -26,14 +28,25 @@ std::string FormatAmount(int64_t cents) {
     return "CNY " + std::to_string(whole) + "." + (abs_fraction < 10 ? "0" : "") + std::to_string(abs_fraction);
 }
 
-std::string TruncateLabel(const std::string& text, size_t max_len) {
-    if (text.size() <= max_len) {
-        return text;
+int ClampToRange(int value, int min_value, int max_value) {
+    return std::max(min_value, std::min(value, max_value));
+}
+
+void DrawGlyphBitmap(Display* display, int origin_x, int origin_y, const GlyphBitmap& glyph) {
+    if (glyph.bitmap == nullptr || glyph.bitmap_size == 0) {
+        return;
     }
-    if (max_len <= 1) {
-        return text.substr(0, max_len);
+
+    int bit_index = 0;
+    for (int y = 0; y < glyph.height; ++y) {
+        for (int x = 0; x < glyph.width; ++x) {
+            const bool black = (glyph.bitmap[bit_index / 8] & (1U << (bit_index % 8))) != 0;
+            if (black) {
+                display->SetPixel(origin_x + x, origin_y + y, true);
+            }
+            ++bit_index;
+        }
     }
-    return text.substr(0, max_len - 1) + ".";
 }
 
 }  // namespace
@@ -91,6 +104,7 @@ void Display::RequestPartialRefresh() {
 
 void Display::BeginPage() {
     ESP_LOGI(kTag, "begin page");
+    Clear(true);
 }
 
 void Display::EndPage() {
@@ -98,20 +112,110 @@ void Display::EndPage() {
 }
 
 void Display::DrawText(const Rect& rect, const char* text, TextAlign align) {
-    ESP_LOGI(kTag, "draw text [%d,%d,%d,%d] align=%d text=%s",
-             rect.x, rect.y, rect.w, rect.h, static_cast<int>(align), text);
+    if (text == nullptr || rect.w <= 0 || rect.h <= 0) {
+        return;
+    }
+
+    BitmapFont& font = BitmapFont::Instance();
+    if (!font.EnsureLoaded()) {
+        ESP_LOGW(kTag, "font unavailable, cannot render text: %s", text);
+        return;
+    }
+
+    const int text_width = MeasureTextWidth(text);
+    int cursor_x = rect.x;
+    if (align == TextAlign::Center) {
+        cursor_x = rect.x + ((rect.w - text_width) / 2);
+    } else if (align == TextAlign::Right) {
+        cursor_x = rect.x + rect.w - text_width;
+    }
+    cursor_x = ClampToRange(cursor_x, rect.x, rect.x + rect.w);
+    const int cursor_y = rect.y + std::max(0, (rect.h - font.line_height()) / 2);
+
+    const std::string value(text);
+    size_t offset = 0;
+    while (offset < value.size()) {
+        uint32_t codepoint = 0;
+        if (!NextUtf8CodePoint(value, offset, codepoint)) {
+            break;
+        }
+
+        GlyphBitmap glyph;
+        if (!font.GetGlyph(codepoint, glyph)) {
+            continue;
+        }
+
+        const int glyph_x = cursor_x + glyph.x_offset;
+        const int glyph_y = cursor_y + glyph.y_offset;
+        DrawGlyphBitmap(this, glyph_x, glyph_y, glyph);
+        cursor_x += glyph.advance;
+        if (cursor_x > rect.x + rect.w) {
+            break;
+        }
+    }
 }
 
 void Display::DrawLine(int x1, int y1, int x2, int y2) {
-    ESP_LOGI(kTag, "draw line (%d,%d)-(%d,%d)", x1, y1, x2, y2);
+    int dx = std::abs(x2 - x1);
+    const int sx = x1 < x2 ? 1 : -1;
+    int dy = -std::abs(y2 - y1);
+    const int sy = y1 < y2 ? 1 : -1;
+    int err = dx + dy;
+
+    while (true) {
+        SetPixel(x1, y1, true);
+        if (x1 == x2 && y1 == y2) {
+            break;
+        }
+        const int e2 = err * 2;
+        if (e2 >= dy) {
+            err += dy;
+            x1 += sx;
+        }
+        if (e2 <= dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
 }
 
 void Display::DrawRect(const Rect& rect) {
-    ESP_LOGI(kTag, "draw rect [%d,%d,%d,%d]", rect.x, rect.y, rect.w, rect.h);
+    if (rect.w <= 0 || rect.h <= 0) {
+        return;
+    }
+    DrawLine(rect.x, rect.y, rect.x + rect.w - 1, rect.y);
+    DrawLine(rect.x, rect.y, rect.x, rect.y + rect.h - 1);
+    DrawLine(rect.x + rect.w - 1, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1);
+    DrawLine(rect.x, rect.y + rect.h - 1, rect.x + rect.w - 1, rect.y + rect.h - 1);
 }
 
 void Display::FillRect(const Rect& rect) {
-    ESP_LOGI(kTag, "fill rect [%d,%d,%d,%d]", rect.x, rect.y, rect.w, rect.h);
+    if (rect.w <= 0 || rect.h <= 0) {
+        return;
+    }
+    for (int y = rect.y; y < rect.y + rect.h; ++y) {
+        for (int x = rect.x; x < rect.x + rect.w; ++x) {
+            SetPixel(x, y, true);
+        }
+    }
+}
+
+void Display::Clear(bool white) {
+    (void)white;
+}
+
+void Display::SetPixel(int x, int y, bool black) {
+    (void)x;
+    (void)y;
+    (void)black;
+}
+
+int Display::MeasureTextWidth(const char* text) const {
+    return BitmapFont::Instance().MeasureText(text);
+}
+
+std::string Display::FitText(const std::string& text, int max_width, const char* ellipsis) const {
+    return BitmapFont::Instance().FitText(text, max_width, ellipsis);
 }
 
 void Display::RenderBarChart(const BarChartModel& model, const Rect& rect) {
@@ -158,7 +262,7 @@ void Display::RenderBarChart(const BarChartModel& model, const Rect& rect) {
                      amount.c_str(), TextAlign::Center);
         }
 
-        const std::string label = TruncateLabel(item.label, 7);
+        const std::string label = FitText(item.label, bar_width + 12);
         DrawText({x - 6, plot_bottom - kChartBottomLabelHeight + 6, bar_width + 12, kChartBottomLabelHeight - 6},
                  label.c_str(), TextAlign::Center);
         x += bar_width + kChartGap;

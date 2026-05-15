@@ -9,6 +9,7 @@
 - 首页：账本总览
 - 页面：总览、最近记录、统计、设置
 - 数据：本地占位数据
+- 中文显示：内置 UTF-8 文本渲染与独立字体分区
 
 ## 目录
 
@@ -16,6 +17,9 @@
 - `main/display/*`：显示抽象、页面模型、页面注册
 - `main/boards/*`：板级抽象与默认板型实现
 - `main/settings.*`：NVS 配置读写
+- `assets/LXGWWenKai-Regular.ttf`：霞鹜文楷字体源文件
+- `assets/font_partition.bin`：基于霞鹜文楷预生成的中文字库分区镜像
+- `scripts/generate_font_partition.py`：字库维护脚本
 
 ## 构建
 
@@ -41,6 +45,12 @@ docker run --rm \
 ```
 
 构建产物默认输出到 `firmware/build/` 目录。
+
+说明：
+
+- 正常 `idf.py build` 会生成应用镜像与 `build/font_partition.bin`。
+- 默认 `idf.py flash` 仍只烧录 bootloader / partition-table / app。
+- 若需要完整中文显示，请使用 Release 包中的 `flash_args` 或 `merged-binary.bin` 进行烧录。
 
 ## Release 打包
 

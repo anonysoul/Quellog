@@ -4,6 +4,7 @@ set(SOURCES
     "settings.cc"
     "boards/common/board.cc"
     "boards/zectrix-s3-epaper-4.2/zectrix-s3-epaper-4.2.cc"
+    "display/bitmap_font.cc"
     "display/display.cc"
     "display/ui_page_registry.cc"
     "display/pages/overview_page.cc"
@@ -19,6 +20,13 @@ idf_component_register(
         "boards/common"
         "display"
         "display/pages"
+    REQUIRES
+        driver
+        esp_app_format
+        esp_partition
+        esp_timer
+        nvs_flash
+        spi_flash
 )
 
 target_compile_definitions(
