@@ -205,22 +205,32 @@ def create_manifest(version: str, flasher_args: dict) -> dict:
 def create_flashing_readme(version: str) -> str:
     return textwrap.dedent(
         f"""\
-        # Quellog Firmware v{version}
+        # 泉流迹 固件 v{version}
 
-        Board: {BOARD_NAME}
-        Target: {TARGET}
+        板型：{BOARD_NAME}
+        目标芯片：{TARGET}
 
-        Multi-file flashing:
+        本发布包支持以下两种烧录方式。
+
+        ## 多文件烧录
+
+        适用于按分区地址分别烧录各个镜像文件。`flash_args` 已包含
+        `bootloader.bin`、`partition-table.bin`、`quellog_firmware.bin`
+        和 `font_partition.bin` 的烧录地址。
 
         ```bash
         python -m esptool --chip {TARGET} -p <PORT> -b 460800 --before default_reset --after hard_reset write_flash @flash_args
         ```
 
-        Single-file flashing:
+        ## 单文件烧录
+
+        适用于直接烧录合并后的整包镜像 `merged-binary.bin`。
 
         ```bash
         python -m esptool --chip {TARGET} -p <PORT> -b 460800 --before default_reset --after hard_reset write_flash 0x0 merged-binary.bin
         ```
+
+        请将 `<PORT>` 替换为实际串口设备，例如 `/dev/ttyUSB0`。
         """
     )
 
