@@ -74,6 +74,10 @@ def run_python_module_with_idf_env(args: list[str]) -> None:
     )
 
 
+def build_web_ui() -> None:
+    run_command([sys.executable, "scripts/build_web_ui.py"])
+
+
 def read_project_version() -> str:
     cmake_path = PROJECT_DIR / "CMakeLists.txt"
     for line in cmake_path.read_text(encoding="utf-8").splitlines():
@@ -257,6 +261,7 @@ def merge_bin() -> None:
 
 
 def build_firmware() -> None:
+    build_web_ui()
     run_idf_command(["set-target", TARGET])
     run_idf_command(["build"])
     merge_bin()

@@ -39,12 +39,21 @@ struct AppContext {
     int page_count = 0;
     bool battery_known = false;
     int battery_level = 0;
+    bool wifi_connected = false;
+    bool wifi_connecting = false;
+    bool wifi_config_mode = false;
     RefreshPolicy refresh_policy = RefreshPolicy::Manual;
     std::string page_title;
     std::string device_alias;
     std::string board_type;
     std::string device_uuid;
     std::string last_refresh_label;
+    std::string wifi_ssid;
+    std::string wifi_ip;
+    std::string wifi_ap_ssid;
+    std::string wifi_ap_url;
+    int settings_selected_item = 0;
+    int settings_item_count = 0;
     DashboardData dashboard;
 };
 

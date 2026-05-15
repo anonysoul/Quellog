@@ -32,6 +32,7 @@ load_idf_env() {
 }
 
 cd "$PROJECT_DIR"
+python3 scripts/build_web_ui.py
 load_idf_env
 
 idf.py set-target esp32s3

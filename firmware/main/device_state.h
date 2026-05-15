@@ -7,6 +7,9 @@ enum DeviceState {
     kDeviceStateIdle,
     kDeviceStateRefreshing,
     kDeviceStateSettings,
+    kDeviceStateWifiConnecting,
+    kDeviceStateWifiConfig,
+    kDeviceStateWifiDisconnected,
     kDeviceStateError
 };
 

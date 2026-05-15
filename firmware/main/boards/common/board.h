@@ -1,6 +1,7 @@
 #ifndef QUELLOG_BOARD_H_
 #define QUELLOG_BOARD_H_
 
+#include <functional>
 #include <string>
 
 class Display;
@@ -15,6 +16,26 @@ enum class InputKey {
 struct InputEvent {
     InputKey key = InputKey::None;
 };
+
+enum class NetworkState {
+    Unknown = 0,
+    Disconnected,
+    Scanning,
+    Connecting,
+    Connected,
+    ConfigMode,
+};
+
+enum class NetworkEvent {
+    Scanning = 0,
+    Connecting,
+    Connected,
+    Disconnected,
+    WifiConfigModeEnter,
+    WifiConfigModeExit,
+};
+
+using NetworkEventCallback = std::function<void(NetworkEvent, const std::string&)>;
 
 void* create_board();
 
@@ -35,6 +56,16 @@ public:
     virtual bool PollInput(InputEvent& event) = 0;
     virtual bool GetBatteryLevel(int& level) { (void)level; return false; }
     virtual std::string GetSystemInfoJson();
+    virtual void StartNetwork() {}
+    virtual void EnterWifiConfigMode() {}
+    virtual bool IsWifiConnected() const { return false; }
+    virtual bool IsWifiConfigMode() const { return false; }
+    virtual NetworkState GetNetworkState() const { return NetworkState::Unknown; }
+    virtual std::string GetWifiSsid() const { return ""; }
+    virtual std::string GetWifiIpAddress() const { return ""; }
+    virtual std::string GetWifiConfigApSsid() const { return ""; }
+    virtual std::string GetWifiConfigApUrl() const { return ""; }
+    virtual void SetNetworkEventCallback(NetworkEventCallback callback) { (void)callback; }
 
 protected:
     Board();

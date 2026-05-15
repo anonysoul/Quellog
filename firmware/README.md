@@ -10,6 +10,8 @@
 - 页面：总览、最近记录、统计、设置
 - 数据：本地占位数据
 - 中文显示：内置 UTF-8 文本渲染与独立字体分区
+- Wi‑Fi：支持 STA 联网与 SoftAP Web 配网
+- 配网：无已保存凭据时自动进入热点配网，设置页支持手动重新配网
 
 ## 目录
 
@@ -17,9 +19,20 @@
 - `main/display/*`：显示抽象、页面模型、页面注册
 - `main/boards/*`：板级抽象与默认板型实现
 - `main/settings.*`：NVS 配置读写
+- `components/quellog_wifi/*`：Wi‑Fi 管理、SoftAP 配网、DNS captive portal、凭据保存
 - `assets/LXGWWenKai-Regular.ttf`：霞鹜文楷字体源文件
 - `assets/font_partition.bin`：基于霞鹜文楷预生成的中文字库分区镜像
 - `scripts/generate_font_partition.py`：字库维护脚本
+
+## 配网说明
+
+- 设备首次启动且没有已保存 Wi‑Fi 时，会自动开启开放热点。
+- 热点名称格式：`Quellog-XXXX`
+- 浏览器访问地址：`http://192.168.4.1`
+- 设置页提供“重新配网”入口，可在已联网状态下重新进入热点模式。
+- 配网成功后，设备会保存最多 5 组 Wi‑Fi 凭据，并自动退出热点。
+- 设备在启动或断线后，会从当前扫描到的已保存 Wi‑Fi 中自动连接信号最强者。
+- Web 配网页会展示已保存网络，并支持删除单条凭据。
 
 ## 构建
 
@@ -28,7 +41,58 @@ cd firmware
 ./build.sh
 ```
 
+固件构建现在会自动先执行仓库根目录下 `device-config-web/` 前端构建，再把产出的 HTML 嵌入 ESP-IDF 固件。
+
+前置要求：
+
+- 已安装 Node.js 与 `npm`
+- 已安装或已加载 ESP-IDF 环境
+
 如果未加载 ESP-IDF 环境，请先执行对应版本的 `export.sh`。
+
+也可以直接运行：
+
+```bash
+cd firmware
+idf.py build
+```
+
+这同样会先触发 Web UI 构建。
+
+## Web 配网页前端
+
+设备设置 Web 前端源码位于仓库根目录 `device-config-web/`，采用 `Vite + Vanilla` 多页工程组织：
+
+- `index.html`：配网页入口
+- `done.html`：配网完成页
+- `src/`：页面脚本、样式与 API 封装
+- `dist/`：构建产物，供固件通过 `EMBED_TXTFILES` 嵌入
+
+本地开发命令：
+
+```bash
+cd device-config-web
+npm ci
+npm run dev
+```
+
+开发模式默认启用本地 mock `/scan`、`/submit`、`/credentials`、`/credentials/delete`、`/exit` 接口。
+
+若要代理到真实设备，可在启动前指定：
+
+```bash
+cd device-config-web
+QUELLOG_WIFI_TARGET=http://192.168.4.1 npm run dev
+```
+
+生产构建命令：
+
+```bash
+cd device-config-web
+npm run build
+```
+
+`idf.py build`、`./build.sh` 与 `python3 scripts/build_release.py` 都会自动执行这个步骤；如果机器上缺少 Node.js 或 `npm`，构建会在前置阶段直接失败。
 
 ## Docker 构建
 
@@ -41,7 +105,7 @@ docker run --rm \
   -v "$(pwd)/firmware:/project" \
   -w /project \
   espressif/idf:release-v5.2 \
-  bash -lc 'idf.py set-target esp32s3 && idf.py build'
+  bash -lc 'apt-get update && apt-get install -y nodejs npm && idf.py set-target esp32s3 && idf.py build'
 ```
 
 构建产物默认输出到 `firmware/build/` 目录。

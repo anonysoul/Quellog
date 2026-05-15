@@ -5,12 +5,15 @@
 #include <esp_timer.h>
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <vector>
 
 #include "board.h"
 #include "config.h"
 #include "display/display.h"
+#include "ssid_manager.h"
+#include "wifi_manager.h"
 
 namespace {
 
@@ -75,6 +78,86 @@ public:
         return &display_;
     }
 
+    void StartNetwork() override {
+        if (network_started_) {
+            return;
+        }
+
+        WifiManagerConfig config;
+        config.ssid_prefix = "Quellog";
+        config.ap_password = "";
+        config.language = "zh-CN";
+        config.station_scan_interval_seconds = 15;
+        if (!WifiManager::GetInstance().Initialize(config)) {
+            ESP_LOGE(kTag, "wifi manager init failed");
+            network_state_.store(NetworkState::Disconnected, std::memory_order_release);
+            return;
+        }
+
+        WifiManager::GetInstance().SetEventCallback([this](WifiEvent event) {
+            if (!network_event_callback_) {
+                switch (event) {
+                    case WifiEvent::Scanning:
+                        network_state_.store(NetworkState::Scanning, std::memory_order_release);
+                        return;
+                    case WifiEvent::Connecting:
+                        network_state_.store(NetworkState::Connecting, std::memory_order_release);
+                        return;
+                    case WifiEvent::Connected:
+                        network_state_.store(NetworkState::Connected, std::memory_order_release);
+                        return;
+                    case WifiEvent::Disconnected:
+                        network_state_.store(NetworkState::Disconnected, std::memory_order_release);
+                        return;
+                    case WifiEvent::ConfigModeEnter:
+                        network_state_.store(NetworkState::ConfigMode, std::memory_order_release);
+                        return;
+                    case WifiEvent::ConfigModeExit:
+                        network_state_.store(NetworkState::Disconnected, std::memory_order_release);
+                        return;
+                }
+            }
+
+            switch (event) {
+                case WifiEvent::Scanning:
+                    network_state_.store(NetworkState::Scanning, std::memory_order_release);
+                    network_event_callback_(NetworkEvent::Scanning, "");
+                    break;
+                case WifiEvent::Connecting:
+                    network_state_.store(NetworkState::Connecting, std::memory_order_release);
+                    network_event_callback_(NetworkEvent::Connecting, WifiManager::GetInstance().GetSsid());
+                    break;
+                case WifiEvent::Connected:
+                    network_state_.store(NetworkState::Connected, std::memory_order_release);
+                    network_event_callback_(NetworkEvent::Connected, WifiManager::GetInstance().GetIpAddress());
+                    break;
+                case WifiEvent::Disconnected:
+                    network_state_.store(NetworkState::Disconnected, std::memory_order_release);
+                    network_event_callback_(NetworkEvent::Disconnected, "");
+                    break;
+                case WifiEvent::ConfigModeEnter:
+                    network_state_.store(NetworkState::ConfigMode, std::memory_order_release);
+                    network_event_callback_(
+                        NetworkEvent::WifiConfigModeEnter,
+                        WifiManager::GetInstance().GetApSsid() + " " + WifiManager::GetInstance().GetApWebUrl());
+                    break;
+                case WifiEvent::ConfigModeExit:
+                    network_state_.store(NetworkState::Disconnected, std::memory_order_release);
+                    network_event_callback_(NetworkEvent::WifiConfigModeExit, "");
+                    break;
+            }
+        });
+
+        if (SsidManager::GetInstance().GetSsidList().empty()) {
+            network_state_.store(NetworkState::ConfigMode, std::memory_order_release);
+            WifiManager::GetInstance().StartConfigAp();
+        } else {
+            network_state_.store(NetworkState::Connecting, std::memory_order_release);
+            WifiManager::GetInstance().StartStation();
+        }
+        network_started_ = true;
+    }
+
     bool PollInput(InputEvent& event) override {
         const int64_t now_us = esp_timer_get_time();
         for (ButtonState& button : buttons_) {
@@ -100,6 +183,46 @@ public:
         return false;
     }
 
+    void EnterWifiConfigMode() override {
+        if (!network_started_) {
+            StartNetwork();
+            return;
+        }
+        WifiManager::GetInstance().StartConfigAp();
+    }
+
+    bool IsWifiConnected() const override {
+        return WifiManager::GetInstance().IsConnected();
+    }
+
+    bool IsWifiConfigMode() const override {
+        return WifiManager::GetInstance().IsConfigMode();
+    }
+
+    NetworkState GetNetworkState() const override {
+        return network_state_.load(std::memory_order_acquire);
+    }
+
+    std::string GetWifiSsid() const override {
+        return WifiManager::GetInstance().GetSsid();
+    }
+
+    std::string GetWifiIpAddress() const override {
+        return WifiManager::GetInstance().GetIpAddress();
+    }
+
+    std::string GetWifiConfigApSsid() const override {
+        return WifiManager::GetInstance().GetApSsid();
+    }
+
+    std::string GetWifiConfigApUrl() const override {
+        return WifiManager::GetInstance().GetApWebUrl();
+    }
+
+    void SetNetworkEventCallback(NetworkEventCallback callback) override {
+        network_event_callback_ = std::move(callback);
+    }
+
 private:
     void ConfigureButton(ButtonState& state, gpio_num_t gpio, InputKey key) {
         state.gpio = gpio;
@@ -121,6 +244,9 @@ private:
 
     PlaceholderEpaperDisplay display_;
     std::array<ButtonState, 3> buttons_ = {};
+    std::atomic<NetworkState> network_state_{NetworkState::Unknown};
+    NetworkEventCallback network_event_callback_;
+    bool network_started_ = false;
 };
 
 }  // namespace

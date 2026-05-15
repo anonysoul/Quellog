@@ -14,6 +14,10 @@
 namespace {
 
 constexpr char kTag[] = "Application";
+constexpr int kSettingsItemRefreshPolicy = 0;
+constexpr int kSettingsItemWifiReconfigure = 1;
+constexpr int kSettingsItemGoHome = 2;
+constexpr int kSettingsItemCount = 3;
 
 int64_t SecondsToMicros(int seconds) {
     return static_cast<int64_t>(seconds) * 1000000LL;
@@ -28,12 +32,16 @@ Application::Application()
 void Application::Initialize() {
     display_ = board_.GetDisplay();
     pages_ = UiPageRegistry::CreateDefault();
+    board_.SetNetworkEventCallback([this](NetworkEvent event, const std::string& data) {
+        HandleNetworkEvent(event, data);
+    });
+    board_.StartNetwork();
     LoadSettings();
     SeedMockData();
     state_.store(kDeviceStateStarting, std::memory_order_release);
+    UpdateDeviceState();
     last_refresh_us_ = esp_timer_get_time();
     RenderCurrentPage(true);
-    state_.store(kDeviceStateIdle, std::memory_order_release);
 }
 
 void Application::Run() {
@@ -48,11 +56,32 @@ void Application::Run() {
             TriggerRefresh();
         }
 
+        if (network_state_dirty_.exchange(false, std::memory_order_acq_rel)) {
+            UpdateDeviceState();
+            RenderCurrentPage(true);
+        }
+
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
 void Application::HandleInput(const InputEvent& event) {
+    if (IsSettingsPage()) {
+        switch (event.key) {
+            case InputKey::Up:
+                PreviousSettingsItem();
+                return;
+            case InputKey::Down:
+                NextSettingsItem();
+                return;
+            case InputKey::Confirm:
+                ExecuteSettingsItem();
+                return;
+            case InputKey::None:
+                return;
+        }
+    }
+
     switch (event.key) {
         case InputKey::Up:
             PreviousPage();
@@ -99,12 +128,24 @@ void Application::RenderCurrentPage(bool full_refresh) {
 void Application::NextPage() {
     current_page_index_ = (current_page_index_ + 1) % std::max(1, pages_.Count());
     SaveSettings();
+    UpdateDeviceState();
     RenderCurrentPage(false);
 }
 
 void Application::PreviousPage() {
     current_page_index_ = (current_page_index_ - 1 + std::max(1, pages_.Count())) % std::max(1, pages_.Count());
     SaveSettings();
+    UpdateDeviceState();
+    RenderCurrentPage(false);
+}
+
+void Application::NextSettingsItem() {
+    settings_selected_item_ = (settings_selected_item_ + 1) % kSettingsItemCount;
+    RenderCurrentPage(false);
+}
+
+void Application::PreviousSettingsItem() {
+    settings_selected_item_ = (settings_selected_item_ + kSettingsItemCount - 1) % kSettingsItemCount;
     RenderCurrentPage(false);
 }
 
@@ -114,8 +155,43 @@ void Application::TriggerRefresh() {
     dashboard_.sync_status = "本地快照 #" + std::to_string(refresh_count_);
     last_refresh_us_ = esp_timer_get_time();
     RenderCurrentPage(true);
-    state_.store(current_page_index_ == pages_.Count() - 1 ? kDeviceStateSettings : kDeviceStateIdle,
-                 std::memory_order_release);
+    UpdateDeviceState();
+}
+
+void Application::ExecuteSettingsItem() {
+    switch (settings_selected_item_) {
+        case kSettingsItemRefreshPolicy:
+            refresh_policy_ = refresh_policy_ == RefreshPolicy::Manual
+                                  ? RefreshPolicy::Timed
+                                  : RefreshPolicy::Manual;
+            SaveSettings();
+            if (display_ != nullptr) {
+                display_->ShowNotification(refresh_policy_ == RefreshPolicy::Timed
+                                               ? "已切换为定时刷新"
+                                               : "已切换为手动刷新");
+            }
+            RenderCurrentPage(true);
+            break;
+        case kSettingsItemWifiReconfigure:
+            board_.EnterWifiConfigMode();
+            network_state_dirty_.store(true, std::memory_order_release);
+            if (display_ != nullptr) {
+                display_->ShowNotification("已进入配网模式");
+            }
+            break;
+        case kSettingsItemGoHome:
+            current_page_index_ = 0;
+            SaveSettings();
+            UpdateDeviceState();
+            RenderCurrentPage(false);
+            break;
+        default:
+            break;
+    }
+}
+
+bool Application::IsSettingsPage() const {
+    return current_page_index_ == pages_.Count() - 1;
 }
 
 void Application::LoadSettings() {
@@ -160,6 +236,15 @@ AppContext Application::BuildContext() const {
     context.board_type = board_.GetBoardType();
     context.device_uuid = board_.GetUuid();
     context.last_refresh_label = BuildRefreshLabel();
+    context.wifi_connected = board_.IsWifiConnected();
+    context.wifi_connecting = context.device_state == kDeviceStateWifiConnecting;
+    context.wifi_config_mode = board_.IsWifiConfigMode();
+    context.wifi_ssid = board_.GetWifiSsid();
+    context.wifi_ip = board_.GetWifiIpAddress();
+    context.wifi_ap_ssid = board_.GetWifiConfigApSsid();
+    context.wifi_ap_url = board_.GetWifiConfigApUrl();
+    context.settings_selected_item = settings_selected_item_;
+    context.settings_item_count = kSettingsItemCount;
     context.dashboard = dashboard_;
 
     int battery_level = 0;
@@ -181,4 +266,43 @@ bool Application::ShouldAutoRefresh(int64_t now_us) const {
         return false;
     }
     return (now_us - last_refresh_us_) >= SecondsToMicros(CONFIG_QUELLOG_AUTO_REFRESH_SECONDS);
+}
+
+void Application::HandleNetworkEvent(NetworkEvent event, const std::string& data) {
+    (void)data;
+    switch (event) {
+        case NetworkEvent::Scanning:
+        case NetworkEvent::Connecting:
+        case NetworkEvent::Connected:
+        case NetworkEvent::Disconnected:
+        case NetworkEvent::WifiConfigModeEnter:
+        case NetworkEvent::WifiConfigModeExit:
+            network_state_dirty_.store(true, std::memory_order_release);
+            break;
+    }
+}
+
+void Application::UpdateDeviceState() {
+    const NetworkState network_state = board_.GetNetworkState();
+    DeviceState next_state = kDeviceStateIdle;
+    switch (network_state) {
+        case NetworkState::ConfigMode:
+            next_state = kDeviceStateWifiConfig;
+            break;
+        case NetworkState::Scanning:
+        case NetworkState::Connecting:
+            next_state = kDeviceStateWifiConnecting;
+            break;
+        case NetworkState::Disconnected:
+            next_state = kDeviceStateWifiDisconnected;
+            break;
+        case NetworkState::Connected:
+            next_state = IsSettingsPage() ? kDeviceStateSettings : kDeviceStateIdle;
+            break;
+        case NetworkState::Unknown:
+        default:
+            next_state = IsSettingsPage() ? kDeviceStateSettings : kDeviceStateIdle;
+            break;
+    }
+    state_.store(next_state, std::memory_order_release);
 }

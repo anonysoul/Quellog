@@ -26,6 +26,7 @@ idf_component_register(
         esp_partition
         esp_timer
         nvs_flash
+        quellog_wifi
         spi_flash
 )
 

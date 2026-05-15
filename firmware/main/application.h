@@ -30,24 +30,32 @@ private:
     void RenderCurrentPage(bool full_refresh);
     void NextPage();
     void PreviousPage();
+    void NextSettingsItem();
+    void PreviousSettingsItem();
     void TriggerRefresh();
+    void ExecuteSettingsItem();
+    bool IsSettingsPage() const;
     void LoadSettings();
     void SaveSettings();
     void SeedMockData();
     AppContext BuildContext() const;
     std::string BuildRefreshLabel() const;
     bool ShouldAutoRefresh(int64_t now_us) const;
+    void HandleNetworkEvent(NetworkEvent event, const std::string& data);
+    void UpdateDeviceState();
 
     Board& board_;
     Display* display_ = nullptr;
     UiPageRegistry pages_;
     std::atomic<DeviceState> state_{kDeviceStateUnknown};
+    std::atomic<bool> network_state_dirty_{false};
     int current_page_index_ = 0;
     RefreshPolicy refresh_policy_ = RefreshPolicy::Manual;
     std::string device_alias_ = "Quellog E-Ink";
     DashboardData dashboard_;
     int64_t last_refresh_us_ = 0;
     int refresh_count_ = 0;
+    int settings_selected_item_ = 0;
 };
 
 #endif  // QUELLOG_APPLICATION_H_
