@@ -1,0 +1,62 @@
+name: Firmware Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  firmware-release:
+    name: Package firmware release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ESP-IDF
+        uses: espressif/install-esp-idf-action@v1
+        with:
+          version: v5.3.2
+
+      - name: Build firmware release package
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            python3 scripts/build_release.py --tag "${GITHUB_REF_NAME}"
+          else
+            python3 scripts/build_release.py
+          fi
+
+      - name: Read firmware version
+        id: version
+        run: |
+          version="$(python3 - <<'PY'
+from pathlib import Path
+for line in Path("CMakeLists.txt").read_text(encoding="utf-8").splitlines():
+    if line.startswith("set(PROJECT_VER"):
+        print(line.split('"')[1])
+        break
+PY
+)"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload firmware release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quellog-firmware_v${{ steps.version.outputs.version }}
+          path: firmware/dist/release/v${{ steps.version.outputs.version }}/quellog-firmware_v${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub release asset
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: firmware/dist/release/v${{ steps.version.outputs.version }}/quellog-firmware_v${{ steps.version.outputs.version }}.zip

@@ -41,3 +41,48 @@ docker run --rm \
 ```
 
 构建产物默认输出到 `firmware/build/` 目录。
+
+## Release 打包
+
+本地打包命令：
+
+```bash
+cd firmware
+python3 scripts/build_release.py
+```
+
+脚本会：
+
+- 读取 `CMakeLists.txt` 中的 `PROJECT_VER`
+- 构建 `esp32s3 / zectrix-s3-epaper-4.2`
+- 执行 `idf.py merge-bin`
+- 输出 `dist/release/v<version>/quellog-firmware_v<version>.zip`
+
+压缩包内包含：
+
+- `merged-binary.bin`
+- `flash_args`
+- `flasher_args.json`
+- `bootloader.bin`
+- `partition-table.bin`
+- `quellog_firmware.bin`
+- `manifest.json`
+- `FLASHING.md`
+
+版本号统一在 `firmware/CMakeLists.txt` 的 `PROJECT_VER` 修改。
+
+## 烧录 Release 包
+
+从 GitHub Release 下载并解压 zip 后，可使用以下两种方式烧录。
+
+多文件烧录：
+
+```bash
+python -m esptool --chip esp32s3 -p <PORT> -b 460800 --before default_reset --after hard_reset write_flash @flash_args
+```
+
+单文件烧录：
+
+```bash
+python -m esptool --chip esp32s3 -p <PORT> -b 460800 --before default_reset --after hard_reset write_flash 0x0 merged-binary.bin
+```

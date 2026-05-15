@@ -1,1 +1,4 @@
 build/
+dist/
+scripts/__pycache__/
+sdkconfig.old

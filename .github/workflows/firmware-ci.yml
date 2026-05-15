@@ -6,10 +6,12 @@ on:
       - main
     paths:
       - ".github/workflows/firmware-ci.yml"
+      - ".github/workflows/firmware-release.yml"
       - "firmware/**"
   pull_request:
     paths:
       - ".github/workflows/firmware-ci.yml"
+      - ".github/workflows/firmware-release.yml"
       - "firmware/**"
 
 permissions:
@@ -28,7 +30,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate build script syntax
-        run: bash -n build.sh
+        run: |
+          bash -n build.sh
+          python3 -m py_compile scripts/build_release.py
 
       - name: Install ESP-IDF
         uses: espressif/install-esp-idf-action@v1
